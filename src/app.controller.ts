@@ -1,20 +1,23 @@
-import { Controller, Get, Post, Req, Body } from '@nestjs/common';
+/*
+ * @Date: 2023-11-13 08:20:03
+ * @LastEditors: bingo 157272494@qq.com
+ * @LastEditTime: 2023-11-17 17:29:35
+ * @FilePath: /dingtalk-biz/src/app.controller.ts
+ */
+import { Controller, Get, Post, Req, Body, Inject } from '@nestjs/common';
 import { AppService } from './app.service';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 
-@Controller('process')
+@Controller('/')
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly appService: AppService,
+  ) {}
 
-  @Get()
+  @Get('hello')
   getHello(): string {
     return this.appService.getHello();
   }
-  @Post('list')
-  getList(@Body() processDto: { startTime: number, endTime: number }) {
-    this.appService.getProcessInstanceIds(
-      processDto.startTime,
-      processDto.endTime
-    );
-  }
 }
-

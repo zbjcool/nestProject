@@ -1,11 +1,13 @@
 /*
  * @Date: 2023-11-15 09:12:18
- * @LastEditors: bingo 157272494@qq.com
- * @LastEditTime: 2023-11-17 16:59:00
- * @FilePath: /dingtalk-biz/src/processes/processes.service.ts
+ * @LastEditors: zhengbinjue zhengbinjue@goocan.net
+ * @LastEditTime: 2023-11-19 20:42:41
+ * @FilePath: /nestProject/src/processes/processes.service.ts
  */
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { interval, firstValueFrom } from 'rxjs';
+import { HttpService } from '@nestjs/axios';
 import { Repository } from 'typeorm';
 import Util, * as $Util from '@alicloud/tea-util';
 import dingtalkworkflow_1_0, * as $dingtalkworkflow_1_0 from '@alicloud/dingtalk/workflow_1_0';
@@ -18,14 +20,16 @@ import { Processes } from './processes.entity';
 @Injectable()
 export class ProcessesService {
   constructor(
-    @InjectRepository(Processes)
-    private readonly processesRepo: Repository<Processes>, // 使用泛型注入对应类型的存储库实例
+    private readonly httpService: HttpService,
+    // @InjectRepository(Processes),
+    // private readonly processesRepo: Repository<Processes>, // 使用泛型注入对应类型的存储库实例
   ) {}
 
-  readonly AppKey = 'dingxiahn1pcvrremr67';
-  readonly AppSecret =
-    't9dMAp8zVDLo7mssLlL69mJffkjTQvJ3Wy-2vTH3kOkChHBxWy_MDW38d2LPP9Fk';
-  readonly processCode = 'PROC-3456322B-C373-47D3-98E1-9545BA3E7DD4';
+  readonly APP_KEY = 'dingwxfdilxqsdji1vor';
+  readonly APP_SECRET =
+    'rbPSu8OsNY5axyiymLAU0c_fiyQ0PKJ47aeBrRqz45Jw_QORRgEdsafEg4ZzZkZH';
+  readonly PROCESS_CODE = 'PROC-43FAC27F-3D83-4E74-B359-A0363406BF6F';
+  readonly REMOTE_URL = 'http://122.225.72.186:22092/archive/services/jaxrs/imports'
 
   accessToken: String;
   /**
@@ -58,22 +62,48 @@ export class ProcessesService {
   ): Promise<Array<any>> {
     // 1. 请求accessToken
     const { accessToken } = await this.requestAccsssToken({
-      appKey: this.AppKey,
-      appSecret: this.AppSecret,
+      appKey: this.APP_KEY,
+      appSecret: this.APP_SECRET,
     });
     this.accessToken = accessToken;
 
     // 2. 请求审批Id列表
     const { list } = await this.requestProcessInstanceIds({
-      processCode: this.processCode,
+      processCode: this.PROCESS_CODE,
       startTime: startTime,
       endTime: endTime,
       nextToken: 0,
       maxResults: 20,
       statuses: statuses,
     });
-    return list;
+
+    list.splice(1)
+
+    // 3. 获取每个审批的详情
+    const plist  = []
+    list.forEach(element => {
+      plist.push(this.requestProcessInstanceDetail(element))
+    });
+    const values = await Promise.all(plist)
+
+    const result = []
+    const _this = this
+    async function test() {
+      for (let i = 0; i < values.length; i++) {
+        const value = values[i]
+        const res = await _this.requestRemoveService(value)
+        result.push(res)
+        console.log(res)
+      }
+    }
+    await test()
+
+    return result;
   }
+  /**
+   * 请求 token
+   * @param params object
+   */
   async requestAccsssToken(params: {
     appKey: string;
     appSecret: string;
@@ -93,6 +123,17 @@ export class ProcessesService {
       }
     }
   }
+  /**
+   * 请求审批 id 列表
+   * @param {Object} params
+   * @param {Array} params.statuses 
+   *  status:
+   *   NEW：新创建
+   *   RUNNING：审批中
+   *   TERMINATED：被终止
+   *   COMPLETED：完成
+   *   CANCELED：取消
+   */
   async requestProcessInstanceIds(params: {
     processCode: string;
     startTime: number;
@@ -113,9 +154,6 @@ export class ProcessesService {
         nextToken: 0,
         maxResults: 20,
         statuses: params.statuses,
-        // [
-        //   "COMPLETED"
-        // ],
       });
     try {
       const res = await client.listProcessInstanceIdsWithOptions(
@@ -131,6 +169,11 @@ export class ProcessesService {
       }
     }
   }
+
+  /**
+   * 请求审批实例详情
+   * @param processInstanceId 审批实例 id
+   */
   async requestProcessInstanceDetail(processInstanceId: string): Promise<void> {
     let client = ProcessesService.createWorkflowClient();
     let getProcessInstanceHeaders =
@@ -141,17 +184,73 @@ export class ProcessesService {
         processInstanceId,
       });
     try {
-      const result = await client.getProcessInstanceWithOptions(
+      const res = await client.getProcessInstanceWithOptions(
         getProcessInstanceRequest,
         getProcessInstanceHeaders,
         new $Util.RuntimeOptions({}),
       );
-      return result;
+      return res.body.result;
     } catch (err) {
       if (!Util.empty(err.code) && !Util.empty(err.message)) {
         // err 中含有 code 和 message 属性，可帮助开发定位问题
         console.log(`错误信息:${err.message},错误码:${err.code}`);
       }
+    }
+  }
+
+  async requestRemoveService(data: any): Promise<void> {
+    const formComponentMap = data.formComponentValues.reduce((accumulator, currentValue) => {
+      accumulator[currentValue.id] = currentValue
+      return accumulator
+      },{},
+    );
+    // 发起人 Id
+    const userId = data.operationRecords && data.operationRecords.length > 0 ? data.operationRecords[0].userId : '';
+    console.log(formComponentMap)
+    // 5. 拼接数据
+    let xmlData = `
+      <FILES> 
+      <FILE> 
+        <!--分类号，必传项-->
+          <SERIES_CODE>DFL</SERIES_CODE>
+        <!--全宗，必传项-->
+        <FONDS_CODE>JXRY</FONDS_CODE>
+        <!--合同编号-->
+        <FILE_CODE>${formComponentMap["TextField_J1BJTKJ4QAO0"].value}</FILE_CODE>
+        <YEAR_CODE >2023</YEAR_CODE>
+        <!--落款时间-->
+        <DATE_OF_CREATION>2023-11-01</DATE_OF_CREATION>
+        <!--正文落款单位-->
+        <AUTHOR>正文落款单位</AUTHOR>
+        <!--流程类型-->
+        <LCLX>发文类型</LCLX>
+        <TITLE_PROPER>${data.title}</TITLE_PROPER>
+        <!—发起人ID，必传项-->
+        <FILING_USER>${userId}</FILING_USER>
+        <OA_ID>${data.businessId}</OA_ID>
+        <!--电子全文导入方式，URL 必传项-->
+        <DOWNLOAD_TYPE>URL</DOWNLOAD_TYPE>
+      </FILE>
+      </FILES>
+    `
+
+
+    // const axiosInstance = this.httpService.axiosRef;
+    // axiosInstance.interceptors.request.use(function (config) {
+    //   return config;
+    // }, null, { synchronous: true });
+    // 4. 调用医院审批服务
+    let result
+    try {
+      const observable = this.httpService.post(this.REMOTE_URL, xmlData, {
+          headers: {
+            'Content-Type': 'text/xml'
+          },
+      })
+      result = await firstValueFrom(observable);
+      return result;
+    } catch (err) {
+      console.log(err)
     }
   }
 
@@ -168,7 +267,8 @@ export class ProcessesService {
 
     // 插入数据时，删除 id，以避免请求体内传入 id
     delete processes.id;
-    return this.processesRepo.save(this.processesRepo.create(processes));
+    // return this.processesRepo.save(this.processesRepo.create(processes));
+    return;
 
     /**
      * 将给定实体插入数据库。与save方法不同，执行原始操作时不包括级联，关系和其他操作。
@@ -184,7 +284,7 @@ export class ProcessesService {
    */
   async deleteCat(id: number): Promise<void> {
     await this.findOneById(id);
-    this.processesRepo.delete(id);
+    // this.processesRepo.delete(id);
   }
 
   /**
@@ -199,7 +299,7 @@ export class ProcessesService {
       processes && processes.nickname ? processes.nickname : existCat.nickname;
     existCat.species =
       processes && processes.species ? processes.species : existCat.species;
-    this.processesRepo.save(existCat);
+    // this.processesRepo.save(existCat);
   }
 
   /**

@@ -1,8 +1,8 @@
 /*
  * @Date: 2023-11-13 08:20:03
- * @LastEditors: bingo 157272494@qq.com
- * @LastEditTime: 2023-11-17 18:15:18
- * @FilePath: /dingtalk-biz/src/app.module.ts
+ * @LastEditors: zhengbinjue zhengbinjue@goocan.net
+ * @LastEditTime: 2023-11-19 15:34:21
+ * @FilePath: /nestProject/src/app.module.ts
  */
 import {
   Module,
@@ -23,21 +23,21 @@ import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 import UnifyExceptionFilter from './common/uinify-exception.filter';
 import logger from './common/logger.middleware';
-import UnifyResponseInterceptor from '.comm';
+import { UnifyResponseInterceptor } from './common/unify-response.interceptor';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'mysql',
-      host: 'localhost',
-      port: 3306,
-      username: 'root',
-      password: 'a.123456',
-      database: 'nest',
-      entities: [join(__dirname, '**', '*.entity.{ts,js}')],
-      synchronize: true,
-      logging: true,
-    }),
+    // TypeOrmModule.forRoot({
+    //   type: 'mysql',
+    //   host: 'localhost',
+    //   port: 3306,
+    //   username: 'root',
+    //   password: 'a.123456',
+    //   database: 'nest',
+    //   entities: [join(__dirname, '**', '*.entity.{ts,js}')],
+    //   synchronize: true,
+    //   logging: true,
+    // }),
     WinstonModule.forRoot({
       transports: [
         new winston.transports.DailyRotateFile({

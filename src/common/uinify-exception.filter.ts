@@ -1,3 +1,9 @@
+/*
+ * @Date: 2023-11-18 18:46:38
+ * @LastEditors: zhengbinjue zhengbinjue@goocan.net
+ * @LastEditTime: 2023-11-18 18:54:41
+ * @FilePath: /nestProject/src/common/uinify-exception.filter.ts
+ */
 import {
   ArgumentsHost,
   Catch,
@@ -31,10 +37,12 @@ export default class UnifyExceptionFilter implements ExceptionFilter {
     let msg =
       exception.message || (status >= 500 ? 'Service Error' : 'Client Error');
     if (
-      Object.prototype.toString.call(response) === '[object Object]' &&
-      response.message
+      Object.prototype.toString.call(response) === '[object Object]'
+      // && response.message
     ) {
-      msg = response.message;
+      // TODO: 问题
+      msg = 'error'
+      // msg = response.message;
     }
     const { query, headers, url, method, body } = req;
 

@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-11-13 08:20:03
  * @LastEditors: bingo 157272494@qq.com
- * @LastEditTime: 2023-11-17 17:29:35
+ * @LastEditTime: 2023-11-20 08:57:29
  * @FilePath: /dingtalk-biz/src/app.controller.ts
  */
 import { Controller, Get, Post, Req, Body, Inject } from '@nestjs/common';
@@ -18,6 +18,7 @@ export class AppController {
 
   @Get('hello')
   getHello(): string {
+    this.logger.info('Hello World!');
     return this.appService.getHello();
   }
 }

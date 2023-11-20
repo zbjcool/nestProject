@@ -1,9 +1,5 @@
 lockfileVersion: '6.0'
 
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-
 dependencies:
   '@alicloud/dingtalk':
     specifier: ^2.0.61
@@ -47,6 +43,9 @@ dependencies:
   nest-winston:
     specifier: ^1.9.4
     version: 1.9.4(@nestjs/common@10.2.8)(winston@3.11.0)
+  qs:
+    specifier: ^6.11.2
+    version: 6.11.2
   reflect-metadata:
     specifier: ^0.1.13
     version: 0.1.13
@@ -55,7 +54,7 @@ dependencies:
     version: 7.8.1
   swagger-ui-express:
     specifier: ^5.0.0
-    version: 5.0.0(express@4.18.2)
+    version: 5.0.0
   typeorm:
     specifier: ^0.3.17
     version: 0.3.17(mysql2@3.6.3)(ts-node@10.9.1)
@@ -75,7 +74,7 @@ devDependencies:
     version: 10.2.1
   '@nestjs/schematics':
     specifier: ^10.0.0
-    version: 10.0.3(chokidar@3.5.3)(typescript@5.2.2)
+    version: 10.0.3(typescript@5.2.2)
   '@nestjs/testing':
     specifier: ^10.0.0
     version: 10.2.8(@nestjs/common@10.2.8)(@nestjs/core@10.2.8)(@nestjs/platform-express@10.2.8)
@@ -120,7 +119,7 @@ devDependencies:
     version: 6.3.3
   ts-jest:
     specifier: ^29.1.0
-    version: 29.1.1(@babel/core@7.23.3)(jest@29.7.0)(typescript@5.2.2)
+    version: 29.1.1(jest@29.7.0)(typescript@5.2.2)
   ts-loader:
     specifier: ^9.4.3
     version: 9.5.0(typescript@5.2.2)(webpack@5.89.0)
@@ -271,10 +270,27 @@ packages:
         optional: true
     dependencies:
       ajv: 8.11.0
-      ajv-formats: 2.1.1(ajv@8.11.0)
+      ajv-formats: 2.1.1
       chokidar: 3.5.3
       jsonc-parser: 3.1.0
       rxjs: 6.6.7
+      source-map: 0.7.4
+    dev: true
+
+  /@angular-devkit/core@16.2.8:
+    resolution: {integrity: sha512-PTGozYvh1Bin5lB15PwcXa26Ayd17bWGLS3H8Rs0s+04mUDvfNofmweaX1LgumWWy3nCUTDuwHxX10M3G0wE2g==}
+    engines: {node: ^16.14.0 || >=18.10.0, npm: ^6.11.0 || ^7.5.6 || >=8.0.0, yarn: '>= 1.13.0'}
+    peerDependencies:
+      chokidar: ^3.5.2
+    peerDependenciesMeta:
+      chokidar:
+        optional: true
+    dependencies:
+      ajv: 8.12.0
+      ajv-formats: 2.1.1
+      jsonc-parser: 3.2.0
+      picomatch: 2.3.1
+      rxjs: 7.8.1
       source-map: 0.7.4
     dev: true
 
@@ -288,7 +304,7 @@ packages:
         optional: true
     dependencies:
       ajv: 8.12.0
-      ajv-formats: 2.1.1(ajv@8.12.0)
+      ajv-formats: 2.1.1
       chokidar: 3.5.3
       jsonc-parser: 3.2.0
       picomatch: 2.3.1
@@ -320,6 +336,19 @@ packages:
       magic-string: 0.26.2
       ora: 5.4.1
       rxjs: 6.6.7
+    transitivePeerDependencies:
+      - chokidar
+    dev: true
+
+  /@angular-devkit/schematics@16.2.8:
+    resolution: {integrity: sha512-MBiKZOlR9/YMdflALr7/7w/BGAfo/BGTrlkqsIB6rDWV1dYiCgxI+033HsiNssLS6RQyCFx/e7JA2aBBzu9zEg==}
+    engines: {node: ^16.14.0 || >=18.10.0, npm: ^6.11.0 || ^7.5.6 || >=8.0.0, yarn: '>= 1.13.0'}
+    dependencies:
+      '@angular-devkit/core': 16.2.8
+      jsonc-parser: 3.2.0
+      magic-string: 0.30.1
+      ora: 5.4.1
+      rxjs: 7.8.1
     transitivePeerDependencies:
       - chokidar
     dev: true
@@ -2210,6 +2239,21 @@ packages:
       - chokidar
     dev: true
 
+  /@nestjs/schematics@10.0.3(typescript@5.2.2):
+    resolution: {integrity: sha512-2BRujK0GqGQ7j1Zpz+obVfskDnnOeVKt5aXoSaVngKo8Oczy8uYCY+R547TQB+Kf35epdfFER2pVnQrX3/It5A==}
+    peerDependencies:
+      typescript: '>=4.8.2'
+    dependencies:
+      '@angular-devkit/core': 16.2.8
+      '@angular-devkit/schematics': 16.2.8
+      comment-json: 4.2.3
+      jsonc-parser: 3.2.0
+      pluralize: 8.0.0
+      typescript: 5.2.2
+    transitivePeerDependencies:
+      - chokidar
+    dev: true
+
   /@nestjs/swagger@7.1.15(@nestjs/common@10.2.8)(@nestjs/core@10.2.8)(reflect-metadata@0.1.13):
     resolution: {integrity: sha512-ZaAO90R9MQXk4iLQLijIH6jrsllkUSYoh0Su6DECGgu8Y4Q/9LfdESwsZ9nmzr/48aLOu+wrv+cdI5Wr6fLKJw==}
     peerDependencies:
@@ -2865,21 +2909,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  /ajv-formats@2.1.1(ajv@8.11.0):
+  /ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
-    peerDependencies:
-      ajv: ^8.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
-    dependencies:
-      ajv: 8.11.0
-    dev: true
-
-  /ajv-formats@2.1.1(ajv@8.12.0):
-    resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
-    peerDependencies:
-      ajv: ^8.0.0
     peerDependenciesMeta:
       ajv:
         optional: true
@@ -6731,7 +6762,6 @@ packages:
     engines: {node: '>=0.6'}
     dependencies:
       side-channel: 1.0.4
-    dev: true
 
   /queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
@@ -7418,13 +7448,12 @@ packages:
     resolution: {integrity: sha512-Ppghvj6Q8XxH5xiSrUjEeCUitrasGtz7v9FCUIBR/4t89fACQ4FnUT9D0yfodUYhB+PrCmYmxwe/2jTDLslHDw==}
     dev: false
 
-  /swagger-ui-express@5.0.0(express@4.18.2):
+  /swagger-ui-express@5.0.0:
     resolution: {integrity: sha512-tsU9tODVvhyfkNSvf03E6FAk+z+5cU3lXAzMy6Pv4av2Gt2xA0++fogwC4qo19XuFf6hdxevPuVCSKFuMHJhFA==}
     engines: {node: '>= v0.10.32'}
     peerDependencies:
       express: '>=4.0.0 || >=5.0.0-beta'
     dependencies:
-      express: 4.18.2
       swagger-ui-dist: 5.9.4
     dev: false
 
@@ -7584,7 +7613,7 @@ packages:
       typescript: 5.2.2
     dev: true
 
-  /ts-jest@29.1.1(@babel/core@7.23.3)(jest@29.7.0)(typescript@5.2.2):
+  /ts-jest@29.1.1(jest@29.7.0)(typescript@5.2.2):
     resolution: {integrity: sha512-D6xjnnbP17cC85nliwGiL+tpoKN0StpgE0TeOjXQTU6MVCfsB4v7aW05CgQ/1OywGb0x/oy9hHFnN+sczTiRaA==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     hasBin: true
@@ -7605,7 +7634,6 @@ packages:
       esbuild:
         optional: true
     dependencies:
-      '@babel/core': 7.23.3
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0
       jest: 29.7.0(@types/node@20.9.0)(ts-node@10.9.1)
@@ -8223,3 +8251,7 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: true
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false

@@ -1,10 +1,10 @@
 /*
  * @Date: 2023-11-15 09:12:18
- * @LastEditors: zhengbinjue zhengbinjue@goocan.net
- * @LastEditTime: 2023-11-19 20:42:41
- * @FilePath: /nestProject/src/processes/processes.service.ts
+ * @LastEditors: bingo 157272494@qq.com
+ * @LastEditTime: 2023-11-20 16:16:23
+ * @FilePath: /dingtalk-biz/src/processes/processes.service.ts
  */
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { interval, firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
@@ -14,22 +14,29 @@ import dingtalkworkflow_1_0, * as $dingtalkworkflow_1_0 from '@alicloud/dingtalk
 import dingtalkoauth2_1_0, * as $dingtalkoauth2_1_0 from '@alicloud/dingtalk/oauth2_1_0';
 import OpenApi, * as $OpenApi from '@alicloud/openapi-client';
 import * as $tea from '@alicloud/tea-typescript';
-import { ConsoleLogger } from '@nestjs/common';
 import { Processes } from './processes.entity';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
+import * as qs from 'qs';
 
 @Injectable()
 export class ProcessesService {
   constructor(
-    private readonly httpService: HttpService,
-    // @InjectRepository(Processes),
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly httpService: HttpService, // @InjectRepository(Processes),
     // private readonly processesRepo: Repository<Processes>, // 使用泛型注入对应类型的存储库实例
   ) {}
 
   readonly APP_KEY = 'dingwxfdilxqsdji1vor';
   readonly APP_SECRET =
     'rbPSu8OsNY5axyiymLAU0c_fiyQ0PKJ47aeBrRqz45Jw_QORRgEdsafEg4ZzZkZH';
-  readonly PROCESS_CODE = 'PROC-43FAC27F-3D83-4E74-B359-A0363406BF6F';
-  readonly REMOTE_URL = 'http://122.225.72.186:22092/archive/services/jaxrs/imports'
+  readonly PROCESS_CODE_MAP = {
+    // 合同审核会签单
+    contract: 'PROC-43FAC27F-3D83-4E74-B359-A0363406BF6F',
+    apply: 'PROC-133F78CA-9ABB-47B2-BEDF-5FF5C8CB611A',
+  };
+  readonly REMOTE_URL =
+    'http://122.225.72.186:22092/archive/services/jaxrs/imports/importFilesForXML';
 
   accessToken: String;
   /**
@@ -56,6 +63,7 @@ export class ProcessesService {
   }
 
   async getProcessInstanceIds(
+    processType: string,
     startTime: number,
     endTime: number,
     statuses: Array<string>,
@@ -69,7 +77,7 @@ export class ProcessesService {
 
     // 2. 请求审批Id列表
     const { list } = await this.requestProcessInstanceIds({
-      processCode: this.PROCESS_CODE,
+      processCode: this.PROCESS_CODE_MAP[processType],
       startTime: startTime,
       endTime: endTime,
       nextToken: 0,
@@ -77,28 +85,16 @@ export class ProcessesService {
       statuses: statuses,
     });
 
-    list.splice(1)
-
     // 3. 获取每个审批的详情
-    const plist  = []
-    list.forEach(element => {
-      plist.push(this.requestProcessInstanceDetail(element))
+    const plist = [];
+    list.forEach((element) => {
+      plist.push(this.requestProcessInstanceDetail(element));
     });
-    const values = await Promise.all(plist)
+    const values = await Promise.all(plist);
 
-    const result = []
-    const _this = this
-    async function test() {
-      for (let i = 0; i < values.length; i++) {
-        const value = values[i]
-        const res = await _this.requestRemoveService(value)
-        result.push(res)
-        console.log(res)
-      }
-    }
-    await test()
-
-    return result;
+    // 4. 调用医院审批服务
+    await this.requestRemoveService(processType, values);
+    return values;
   }
   /**
    * 请求 token
@@ -119,14 +115,16 @@ export class ProcessesService {
     } catch (err) {
       if (!Util.empty(err.code) && !Util.empty(err.message)) {
         // err 中含有 code 和 message 属性，可帮助开发定位问题
-        console.log(`错误信息:${err.message},错误码:${err.code}`);
+        this.logger.error(
+          '获取token失败,' + `错误信息:${err.message},错误码:${err.code}`,
+        );
       }
     }
   }
   /**
    * 请求审批 id 列表
    * @param {Object} params
-   * @param {Array} params.statuses 
+   * @param {Array} params.statuses
    *  status:
    *   NEW：新创建
    *   RUNNING：审批中
@@ -165,7 +163,9 @@ export class ProcessesService {
     } catch (err) {
       if (!Util.empty(err.code) && !Util.empty(err.message)) {
         // err 中含有 code 和 message 属性，可帮助开发定位问题
-        console.log(`错误信息:${err.message},错误码:${err.code}`);
+        this.logger.error(
+          '获取审批ID列表错误,' + `错误信息:${err.message},错误码:${err.code}`,
+        );
       }
     }
   }
@@ -193,64 +193,141 @@ export class ProcessesService {
     } catch (err) {
       if (!Util.empty(err.code) && !Util.empty(err.message)) {
         // err 中含有 code 和 message 属性，可帮助开发定位问题
-        console.log(`错误信息:${err.message},错误码:${err.code}`);
+        this.logger.error(
+          '获取审批详情失败,' + `错误信息:${err.message},错误码:${err.code}`,
+        );
       }
     }
   }
 
-  async requestRemoveService(data: any): Promise<void> {
-    const formComponentMap = data.formComponentValues.reduce((accumulator, currentValue) => {
-      accumulator[currentValue.id] = currentValue
-      return accumulator
-      },{},
-    );
-    // 发起人 Id
-    const userId = data.operationRecords && data.operationRecords.length > 0 ? data.operationRecords[0].userId : '';
-    console.log(formComponentMap)
-    // 5. 拼接数据
-    let xmlData = `
-      <FILES> 
-      <FILE> 
-        <!--分类号，必传项-->
-          <SERIES_CODE>DFL</SERIES_CODE>
-        <!--全宗，必传项-->
-        <FONDS_CODE>JXRY</FONDS_CODE>
-        <!--合同编号-->
-        <FILE_CODE>${formComponentMap["TextField_J1BJTKJ4QAO0"].value}</FILE_CODE>
-        <YEAR_CODE >2023</YEAR_CODE>
-        <!--落款时间-->
-        <DATE_OF_CREATION>2023-11-01</DATE_OF_CREATION>
-        <!--正文落款单位-->
-        <AUTHOR>正文落款单位</AUTHOR>
-        <!--流程类型-->
-        <LCLX>发文类型</LCLX>
-        <TITLE_PROPER>${data.title}</TITLE_PROPER>
-        <!—发起人ID，必传项-->
-        <FILING_USER>${userId}</FILING_USER>
-        <OA_ID>${data.businessId}</OA_ID>
-        <!--电子全文导入方式，URL 必传项-->
-        <DOWNLOAD_TYPE>URL</DOWNLOAD_TYPE>
-      </FILE>
-      </FILES>
-    `
-
-
-    // const axiosInstance = this.httpService.axiosRef;
-    // axiosInstance.interceptors.request.use(function (config) {
-    //   return config;
-    // }, null, { synchronous: true });
-    // 4. 调用医院审批服务
-    let result
+  async requestRemoveService(
+    processType: string,
+    datas: Array<any>,
+  ): Promise<void> {
     try {
-      const observable = this.httpService.post(this.REMOTE_URL, xmlData, {
+      const xmlData = this.getFilesXml(processType, datas);
+
+      const observable = this.httpService.post(
+        this.REMOTE_URL,
+        qs.stringify({
+          xml: xmlData,
+        }),
+        {
           headers: {
-            'Content-Type': 'text/xml'
+            'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
           },
-      })
-      result = await firstValueFrom(observable);
-      return result;
+        },
+      );
+      const res = await firstValueFrom(observable);
+      this.logger.info(
+        `调用服务成功,传参:${JSON.stringify(xmlData)},数据:${res}`,
+      );
+      console.log(xmlData);
     } catch (err) {
-      console.log(err)
+      this.logger.error(
+        '调用服务失败,' + `错误信息:${err.message},错误码:${err.code}`,
+      );
+    }
+  }
+
+  getFilesXml(processType: string, datas: Array<any>): string {
+    let filesXml = '';
+    // TODO: 发布前删掉
+    datas.splice(2);
+    for (let i = 0; i < datas.length; i++) {
+      let fileXml = '';
+      const { businessId, formComponentValues, operationRecords, finishTime } =
+        datas[i];
+      // 获取表单组件的值
+      const formComponentMap = formComponentValues.reduce(
+        (accumulator, currentValue) => {
+          accumulator[currentValue.id] = currentValue.value || '';
+          return accumulator;
+        },
+        {},
+      );
+      // 发起人 Id
+      const userId =
+        operationRecords && operationRecords.length > 0
+          ? operationRecords[0].userId
+          : '';
+      // 拼接单个合同数据
+      fileXml = this.getFile(processType, {
+        businessId,
+        formComponentMap,
+        userId,
+        finishTime,
+      });
+      filesXml += fileXml;
+    }
+    return `
+      <FILES> 
+      ${filesXml}
+      </FILES> 
+    `;
+  }
+
+  getFile(
+    processType: string,
+    { formComponentMap, businessId, userId, finishTime },
+  ): string {
+    const seriesCode = 'DFL';
+    const fondsCode = 'JXEY';
+    let titleProper = '';
+    let fileCode = '';
+    let lclx = '';
+    const finishDate = new Date(finishTime);
+    let yearCode = finishDate.getFullYear();
+    let dateOfCreation = `${finishDate.getFullYear()}-${
+      finishDate.getMonth() + 1
+    }-${finishDate.getDate()}`;
+    const auth = '嘉兴市第二医院';
+    if (processType === 'contract') {
+      // 合同项目名称
+      titleProper = formComponentMap['TextField-K2AD4O5B'];
+      // 合同编号
+      fileCode = formComponentMap['TextField_J1BJTKJ4QAO0'];
+      lclx = '嘉兴市第二医院合同审核会签单';
+      return `
+        <FILE>
+          <SERIES_CODE>${seriesCode}</SERIES_CODE>
+          <FONDS_CODE>${fondsCode}</FONDS_CODE>
+          <FILE_CODE>${fileCode}</FILE_CODE>
+          <YEAR_CODE>${yearCode}</YEAR_CODE>
+          <DATE_OF_CREATION>${dateOfCreation}</DATE_OF_CREATION>
+          <AUTHOR>${auth}</AUTHOR>
+          <LCLX>${lclx}</LCLX>
+          <TITLE_PROPER>${titleProper}</TITLE_PROPER>
+          <FILING_USER>${userId}</FILING_USER>
+          <OA_ID>${businessId}</OA_ID>
+          <DOWNLOAD_TYPE>URL</DOWNLOAD_TYPE>
+          <DOCUMENTS>
+          </DOCUMENTS>
+        </FILE>
+      `;
+    } else if (processType === 'apply') {
+      // 文件题目
+      titleProper = formComponentMap['TextField_D0PSJU86PW80'];
+      // 发文编号
+      fileCode = formComponentMap['TextField_1A6215FTG4DC0'];
+      lclx = formComponentMap['DDSelectField-KDE3WKY7'];
+      return `
+        <FILE>
+          <SERIES_CODE>${seriesCode}</SERIES_CODE>
+          <FONDS_CODE>${fondsCode}</FONDS_CODE>
+          <FILE_CODE>${fileCode}</FILE_CODE>
+          <YEAR_CODE>${yearCode}</YEAR_CODE>
+          <DATE_OF_CREATION>${dateOfCreation}</DATE_OF_CREATION>
+          <AUTHOR>${auth}</AUTHOR>
+          <LCLX>${lclx}</LCLX>
+          <TITLE_PROPER>${titleProper}</TITLE_PROPER>
+          <FILING_USER>${userId}</FILING_USER>
+          <OA_ID>${businessId}</OA_ID>
+          <DOWNLOAD_TYPE>URL</DOWNLOAD_TYPE>
+          <DOCUMENTS> 
+          </DOCUMENTS>
+        </FILE>
+       `;
     }
   }
 

@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-11-15 09:10:03
  * @LastEditors: bingo 157272494@qq.com
- * @LastEditTime: 2023-11-17 16:57:52
+ * @LastEditTime: 2023-11-20 15:21:56
  * @FilePath: /dingtalk-biz/src/processes/processes.controller.ts
  */
 import {
@@ -31,12 +31,14 @@ export class ProcessesController {
   async getList(
     @Body()
     processDto: {
+      processType: string; // contract,apply
       startTime: number;
       endTime: number;
-      statuses: string[];
+      statuses: string[]; // COMPLETED
     },
   ): Promise<Result> {
     const data = await this.processesService.getProcessInstanceIds(
+      processDto.processType,
       processDto.startTime,
       processDto.endTime,
       processDto.statuses,
